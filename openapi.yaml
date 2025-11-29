@@ -1,0 +1,1033 @@
+openapi: 3.1.0
+info:
+  title: CloneVoice API
+  version: 1.0.0
+  summary: Voices, languages, audio generation, and generated audio retrieval
+  description: |
+    The CloneVoice API provides endpoints for managing voices, languages, audio generation,
+    and retrieval of previously generated audio.
+
+    Main capabilities:
+    - Voices: list & fetch voices (system, cloned, designed, public library)
+    - Languages: list available languages
+    - Audio: generate audio from text and check audio status
+    - Generated Audio: list and retrieve generated audio with rich filtering
+
+servers:
+  - url: https://app.clonevoice.ai/api/v1
+    description: Production
+  - url: https://stage.clonevoice.ai/api/v1
+    description: Staging
+
+security:
+  - ApiKeyAuth: [ ]
+
+tags:
+  - name: Voices
+    description: Manage and retrieve voices
+  - name: Languages
+    description: Retrieve available languages
+  - name: Audio
+    description: Generate audio from text and check status
+  - name: Generated Audio
+    description: Retrieve previously generated audio
+  - name: Webhooks
+    description: Webhook events for audio processing
+  - name: System
+    description: Authentication, rate limiting, and common behaviors
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: |
+        API key authentication.
+
+        Use one of:
+        - `Authorization: Bearer sk_your_api_key_here`
+        - `Authorization: sk_your_api_key_here`
+
+  parameters:
+    PerPageParam:
+      name: per_page
+      in: query
+      description: Number of items per page (1–100).
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    PageParam:
+      name: page
+      in: query
+      description: Page number (1-based).
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    DateFromParam:
+      name: date_from
+      in: query
+      description: Filter from specific creation date (YYYY-MM-DD).
+      required: false
+      schema:
+        type: string
+        format: date
+    DateToParam:
+      name: date_to
+      in: query
+      description: Filter to specific creation date (YYYY-MM-DD, must be >= date_from).
+      required: false
+      schema:
+        type: string
+        format: date
+
+  schemas:
+    VoiceAudioPreview:
+      type: object
+      properties:
+        id:
+          type: integer
+        src:
+          type: string
+          format: uri
+        title:
+          type: string
+      required: [ id, src, title ]
+
+    VoiceLanguage:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        code:
+          type: string
+      required: [ id, name, code ]
+
+    Voice:
+      type: object
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          description: Voice category.
+          enum: [ system, cloned, designed, public_library ]
+        gender:
+          type: string
+          nullable: true
+          enum: [ male, female, others ]
+        age:
+          type: string
+          nullable: true
+        is_favorite:
+          type: boolean
+        is_exported:
+          type: boolean
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        audio:
+          $ref: '#/components/schemas/VoiceAudioPreview'
+        language:
+          $ref: '#/components/schemas/VoiceLanguage'
+      required:
+        - id
+        - uuid
+        - name
+        - category
+        - is_favorite
+        - is_exported
+        - status
+        - created_at
+        - updated_at
+        - audio
+        - language
+
+    VoicesListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Voice'
+        pagination:
+          type: object
+          properties:
+            current_page:
+              type: integer
+            per_page:
+              type: integer
+            total:
+              type: integer
+            last_page:
+              type: integer
+            from:
+              type: integer
+              nullable: true
+            to:
+              type: integer
+              nullable: true
+            has_more_pages:
+              type: boolean
+        filters:
+          type: object
+          additionalProperties: true
+        meta:
+          type: object
+          properties:
+            user_id:
+              type: integer
+            total_voices:
+              type: integer
+            available_categories:
+              type: array
+              items:
+                type: string
+      required: [ data, pagination ]
+
+    VoiceResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Voice'
+        meta:
+          type: object
+          properties:
+            user_id:
+              type: integer
+            voice_id:
+              type: integer
+            voice_uuid:
+              type: string
+      required: [ data ]
+
+    Language:
+      type: object
+      properties:
+        id:
+          type: integer
+        label:
+          type: string
+        code:
+          type: string
+      required: [ id, label, code ]
+
+    LanguagesResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Language'
+      required: [ data ]
+
+    AudioStatus:
+      type: string
+      enum: [ pending, processing, completed, failed ]
+
+    Audio:
+      type: object
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+        script:
+          type: string
+        status:
+          $ref: '#/components/schemas/AudioStatus'
+        src:
+          type: string
+          format: uri
+          nullable: true
+        length:
+          type: number
+          format: float
+          nullable: true
+          description: Audio length in seconds.
+        voice_id:
+          type: integer
+          nullable: true
+        og_language_id:
+          type: integer
+          nullable: true
+        language_id:
+          type: integer
+          nullable: true
+        language_name:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+          description: Audio type.
+          enum: [ audio, music, podcast, audio_book, sfx ]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - uuid
+        - script
+        - status
+        - created_at
+        - updated_at
+
+    AudioCreateRequest:
+      type: object
+      properties:
+        script:
+          type: string
+          maxLength: 7000
+          description: Text to convert to audio.
+          example: Hello, this is a test audio generation.
+        voice_id:
+          type: integer
+          description: ID of the voice to use.
+          example: 1
+        language_id:
+          type: integer
+          description: ID of the language.
+          example: 1
+        title:
+          type: string
+          maxLength: 255
+          nullable: true
+          example: Test Audio
+        webhook_url:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to receive webhook notifications.
+          example: https://your-app.com/webhooks/audio-complete
+      required: [ script, voice_id, language_id ]
+
+    AudioCreateResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Audio created successfully
+        hint:
+          type: string
+          description: Webhook/polling hint depending on whether a webhook_url was provided.
+          example: You will receive two webhook callbacks when the audio processing starts and completes
+        uuid:
+          type: string
+          format: uuid
+        data:
+          type: object
+          properties:
+            audio:
+              $ref: '#/components/schemas/Audio'
+          required: [ audio ]
+      required: [ message, uuid, data ]
+
+    AudioStatusResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            audio:
+              $ref: '#/components/schemas/Audio'
+          required: [ audio ]
+      required: [ data ]
+
+    GeneratedAudioListItem:
+      type: object
+      description: Simplified generated-audio item.
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          format: uuid
+        clonevoice_user_id:
+          type: integer
+        clonevoice_user_email:
+          type: string
+          format: email
+        language_id:
+          type: integer
+        language_name:
+          type: string
+        title:
+          type: string
+        script:
+          type: string
+        src:
+          type: string
+          format: uri
+          nullable: true
+        length:
+          type: number
+          format: float
+        type:
+          type: string
+          enum: [ audio, music, podcast, audio_book, sfx ]
+        status:
+          $ref: '#/components/schemas/AudioStatus'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - uuid
+        - clonevoice_user_id
+        - clonevoice_user_email
+        - language_id
+        - language_name
+        - title
+        - script
+        - type
+        - status
+        - created_at
+        - updated_at
+
+    GeneratedAudioListResponse:
+      type: object
+      description: Paginated list of generated audio (Laravel-style pagination).
+      properties:
+        current_page:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneratedAudioListItem'
+        first_page_url:
+          type: string
+          format: uri
+        from:
+          type: integer
+          nullable: true
+        last_page:
+          type: integer
+        last_page_url:
+          type: string
+          format: uri
+        links:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                format: uri
+                nullable: true
+              label:
+                type: string
+              page:
+                type: integer
+                nullable: true
+              active:
+                type: boolean
+                nullable: true
+        next_page_url:
+          type: string
+          format: uri
+          nullable: true
+        path:
+          type: string
+          format: uri
+        per_page:
+          type: integer
+        prev_page_url:
+          type: string
+          format: uri
+          nullable: true
+        to:
+          type: integer
+          nullable: true
+        total:
+          type: integer
+      required: [ current_page, data, per_page, total ]
+
+    GeneratedAudioItemResponse:
+      allOf:
+        - $ref: '#/components/schemas/GeneratedAudioListItem'
+
+    ErrorResponse:
+      type: object
+      description: Generic error response.
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        valid_types:
+          type: array
+          items:
+            type: string
+        valid_statuses:
+          type: array
+          items:
+            type: string
+        valid_categories:
+          type: array
+          items:
+            type: string
+      required:
+        - message
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: The given data was invalid.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required: [ message, errors ]
+
+    RateLimitErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Too Many Attempts.
+        exception:
+          type: string
+          example: Illuminate\Http\Exceptions\ThrottleRequestsException
+      required: [ message ]
+
+    AudioWebhookEvent:
+      type: object
+      properties:
+        event:
+          type: string
+          enum: [ audio.processing, audio.completed, audio.failed ]
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/AudioStatus'
+        data:
+          type: object
+          properties:
+            audio:
+              $ref: '#/components/schemas/Audio'
+          required: [ audio ]
+      required: [ event, timestamp, status, data ]
+
+paths:
+  /voices:
+    get:
+      tags: [ Voices ]
+      summary: Get all voices
+      description: |
+        Retrieves all voices for the authenticated user with optional filtering and pagination.
+        This includes user's voices (cloned, designed, public_library) and system voices.
+      operationId: listVoices
+      parameters:
+        - name: category
+          in: query
+          required: false
+          description: Filter by voice category.
+          schema:
+            type: string
+            enum: [ system, cloned, designed, public_library ]
+        - name: search
+          in: query
+          required: false
+          description: Search in voice name, description, or label.
+          schema:
+            type: string
+        - name: gender
+          in: query
+          required: false
+          description: |
+            Filter by gender (`male`, `female`, `others`). Supports multiple values, comma-separated,
+            e.g. `gender=male,female`.
+          schema:
+            type: string
+        - name: age
+          in: query
+          required: false
+          description: Filter by age group.
+          schema:
+            type: string
+        - name: favorite
+          in: query
+          required: false
+          description: |
+            Filter by favorite status.
+            - `true`: only favorite voices
+            - `false`: only non-favorite voices
+          schema:
+            type: boolean
+        - name: exported
+          in: query
+          required: false
+          description: |
+            Filter by exported status.
+            - `true`: only exported voices
+            - `false`: only non-exported voices
+          schema:
+            type: boolean
+        - name: system
+          in: query
+          required: false
+          description: Include system voices (`yes` or `no`).
+          schema:
+            type: string
+            enum: [ yes, no ]
+            default: yes
+        - name: sort_by
+          in: query
+          required: false
+          description: Sort field.
+          schema:
+            type: string
+            enum: [ name, created_at, updated_at, category, gender, age ]
+            default: created_at
+        - name: sort_order
+          in: query
+          required: false
+          description: Sort order (`asc` or `desc`).
+          schema:
+            type: string
+            enum: [ asc, desc ]
+            default: desc
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/PageParam'
+      responses:
+        '200':
+          description: List of voices.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoicesListResponse'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Unauthorized or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account not active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many requests (rate limit exceeded).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitErrorResponse'
+
+  /voices/{id_or_uuid}:
+    get:
+      tags: [ Voices ]
+      summary: Get specific voice
+      description: Retrieves a specific voice by its numeric ID or UUID.
+      operationId: getVoice
+      parameters:
+        - name: id_or_uuid
+          in: path
+          required: true
+          description: Voice ID or UUID.
+          schema:
+            oneOf:
+              - type: integer
+              - type: string
+      responses:
+        '200':
+          description: Voice details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceResponse'
+        '401':
+          description: Unauthorized or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account not active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Voice not found or not accessible.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /languages:
+    get:
+      tags: [ Languages ]
+      summary: Get all languages
+      description: Retrieves all available languages for audio generation.
+      operationId: listLanguages
+      responses:
+        '200':
+          description: List of languages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LanguagesResponse'
+        '401':
+          description: Unauthorized or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account not active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /audio:
+    post:
+      tags: [ Audio ]
+      summary: Generate audio
+      description: |
+        Generates audio from text using a selected voice and language.
+
+        The process is asynchronous: generation happens in the background.
+        You can either provide a webhook URL to receive notifications, or poll the
+        `GET /audio/{id_or_uuid}` endpoint.
+      operationId: createAudio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AudioCreateRequest'
+      responses:
+        '200':
+          description: Audio creation request accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioCreateResponse'
+        '400':
+          description: Validation error or unsupported language for selected voice.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account not active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many requests (rate limit exceeded).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitErrorResponse'
+
+    get: &GeneratedAudioList
+      tags: [ Generated Audio ]
+      summary: Get all generated audio
+      description: |
+        Retrieves all generated audio for the authenticated user with optional filtering,
+        sorting, and pagination.
+
+        Aliases:
+        - `GET /audio`
+        - `GET /get-generated-audio`
+      operationId: listGeneratedAudio
+      parameters:
+        - name: type
+          in: query
+          required: false
+          description: Filter by audio type.
+          schema:
+            type: string
+            enum: [ audio, music, podcast, audio_book, sfx ]
+        - name: search
+          in: query
+          required: false
+          description: Search in title or script (max 255 characters).
+          schema:
+            type: string
+            maxLength: 255
+        - name: length[eq]
+          in: query
+          required: false
+          description: Filter by exact length in seconds.
+          schema:
+            type: number
+        - name: length[gt]
+          in: query
+          required: false
+          description: Filter by length greater than value (seconds).
+          schema:
+            type: number
+        - name: length[lt]
+          in: query
+          required: false
+          description: Filter by length less than value (seconds).
+          schema:
+            type: number
+        - name: length[gte]
+          in: query
+          required: false
+          description: Filter by length greater than or equal to value (seconds).
+          schema:
+            type: number
+        - name: length[lte]
+          in: query
+          required: false
+          description: Filter by length less than or equal to value (seconds).
+          schema:
+            type: number
+        - name: music[version]
+          in: query
+          required: false
+          description: |
+            Filter music by version (1 or 2). Automatically restricts results to music type.
+          schema:
+            type: integer
+            enum: [ 1, 2 ]
+        - name: status
+          in: query
+          required: false
+          description: Filter by audio generation status.
+          schema:
+            $ref: '#/components/schemas/AudioStatus'
+        - $ref: '#/components/parameters/DateFromParam'
+        - $ref: '#/components/parameters/DateToParam'
+        - name: sort_by
+          in: query
+          required: false
+          description: Sort field.
+          schema:
+            type: string
+            enum: [ created_at, updated_at, completed_at ]
+            default: created_at
+        - name: sort_order
+          in: query
+          required: false
+          description: Sort order.
+          schema:
+            type: string
+            enum: [ asc, desc ]
+            default: desc
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/PageParam'
+      responses:
+        '200':
+          description: Paginated list of generated audio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedAudioListResponse'
+        '400':
+          description: Validation error or invalid filter operators.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Unauthorized or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account not active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many requests (rate limit exceeded).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitErrorResponse'
+
+  /audio/{id_or_uuid}:
+    get:
+      tags: [ Audio, Generated Audio ]
+      summary: Get audio status or details
+      description: |
+        Retrieves the current status and details of an audio generation request.
+
+        When status is `completed`, the response includes the final audio URL (`src`)
+        and length. This endpoint can also be used as "Get specific generated audio".
+      operationId: getAudio
+      parameters:
+        - name: id_or_uuid
+          in: path
+          required: true
+          description: Audio ID or UUID.
+          schema:
+            oneOf:
+              - type: integer
+              - type: string
+      responses:
+        '200':
+          description: Audio details and status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioStatusResponse'
+        '401':
+          description: Unauthorized or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account not active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Audio not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /get-generated-audio:
+    get: *GeneratedAudioList
+
+  /get-generated-audio/{id_or_uuid}:
+    get:
+      tags: [ Generated Audio ]
+      summary: Get specific generated audio
+      description: Retrieves a specific generated audio by its numeric ID or UUID.
+      operationId: getGeneratedAudio
+      parameters:
+        - name: id_or_uuid
+          in: path
+          required: true
+          description: Audio ID or UUID.
+          schema:
+            oneOf:
+              - type: integer
+              - type: string
+      responses:
+        '200':
+          description: Generated audio item.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneratedAudioItemResponse'
+        '401':
+          description: Unauthorized or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account not active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Generated audio not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+webhooks:
+  audioProcessing:
+    post:
+      tags: [ Webhooks ]
+      summary: Audio processing started
+      description: Webhook sent when audio processing starts (`audio.processing` event).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AudioWebhookEvent'
+      responses:
+        '200':
+          description: Webhook received successfully.
+  audioCompleted:
+    post:
+      tags: [ Webhooks ]
+      summary: Audio processing completed
+      description: Webhook sent when audio processing completes (`audio.completed` event).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AudioWebhookEvent'
+      responses:
+        '200':
+          description: Webhook received successfully.
+  audioFailed:
+    post:
+      tags: [ Webhooks ]
+      summary: Audio processing failed
+      description: Webhook sent when audio processing fails (`audio.failed` event).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AudioWebhookEvent'
+      responses:
+        '200':
+          description: Webhook received successfully.

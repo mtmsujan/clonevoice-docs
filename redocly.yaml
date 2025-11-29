@@ -1,0 +1,18 @@
+apis:
+  clonevoice@v1:
+    root: ./openapi.yaml
+
+lint:
+  extends:
+    - recommended
+
+referenceDocs:
+  build:
+    output: ./docs
+  theme:
+    colors:
+      primary:
+        main: "#3B82F6"
+    typography:
+      fontSize: 14
+      lineHeight: 1.6
