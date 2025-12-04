@@ -266,6 +266,11 @@ components:
           type: string
           format: uri
           nullable: true
+        vocals_url:
+          type: string
+          format: uri
+          nullable: true
+          description: URL for vocals track. Only available when type is music.
         length:
           type: number
           format: float
