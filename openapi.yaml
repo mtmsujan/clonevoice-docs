@@ -334,6 +334,12 @@ components:
           nullable: true
           description: URL to receive webhook notifications.
           example: https://your-app.com/webhooks/audio-complete
+        high_similarity:
+          type: boolean
+          default: true
+          description: >
+            When `true` (default), the audio generation prioritizes higher similarity to the
+            selected voice. Set to `false` to use standard similarity mode.
       required: [ script, voice_id, language_id ]
 
     AudioCreateResponse:
