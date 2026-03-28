@@ -232,7 +232,14 @@ components:
           type: string
         code:
           type: string
-      required: [ id, label, code ]
+        high_similarity_supported:
+          type: boolean
+          description: Indicates whether this language supports the high similarity feature.
+        high_similarity_label:
+          type: string
+          nullable: true
+          description: Display label for the high similarity feature. Only present when `high_similarity_supported` is `true`.
+      required: [ id, label, code, high_similarity_supported ]
 
     LanguagesResponse:
       type: object
@@ -724,6 +731,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LanguagesResponse'
+              example:
+                data:
+                  - id: 1
+                    label: English
+                    code: en
+                    high_similarity_supported: true
+                    high_similarity_label: "Boost Similarity v2.0 (Beta)"
+                  - id: 2
+                    label: Spanish
+                    code: es
+                    high_similarity_supported: true
+                    high_similarity_label: "Boost Similarity v2.0 (Beta)"
+                  - id: 3
+                    label: Bengali
+                    code: ben
+                    high_similarity_supported: false
         '401':
           description: Unauthorized or invalid API key.
           content:
