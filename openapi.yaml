@@ -722,8 +722,33 @@ paths:
     get:
       tags: [ Languages ]
       summary: Get all languages
-      description: Retrieves all available languages for audio generation.
+      description: |
+        Retrieves available languages, optionally filtered by feature.
+        By default, returns languages supported for audio generation (`create_audio`).
+
+        Any valid feature name from the system is accepted. If a feature has no specific
+        language list configured, all languages are returned.
       operationId: listLanguages
+      parameters:
+        - name: feature_name
+          in: query
+          required: false
+          description: |
+            Filter languages by feature. Available values:
+            - `create_audio` — Audio generation (default)
+            - `create_audiobook` — Audio book generation
+            - `create_music` — Music generation
+            - `create_sing_in_voice` — Sing in your voice
+            - `create_podcast` — Podcast generation
+          schema:
+            type: string
+            default: create_audio
+            enum:
+              - create_audio
+              - create_audiobook
+              - create_music
+              - create_sing_in_voice
+              - create_podcast
       responses:
         '200':
           description: List of languages.
